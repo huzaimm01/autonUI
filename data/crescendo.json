@@ -28,8 +28,8 @@
     {
       "name": "Stage Center",
       "type": "obstacle",
-      "x": 8.02 / 2,
-      "y": 16.45 / 2,
+      "x": 4.01,
+      "y": 8.225,
       "width": 1.0,
       "height": 1.0
     },
