@@ -1,7 +1,73 @@
 import sys
 import os
 from PyQt5 import QtWidgets, uic, QtGui, QtCore
+from PyQt5.QtOpenGL import QGLWidget
 from app import GameConfig, RobotConfig, PathPlanner, Utils
+
+from OpenGL.GL import *
+from math import cos, sin, pi
+
+class OpenGLField(QGLWidget):
+    def __init__(self, parent=None):
+        super(OpenGLField, self).__init__(parent)
+        self.path = []
+        self.elements = []
+        self.field_dims = (8.0, 16.0)
+        self.margin = 0.1
+        self.scale = 1.0
+
+    def set_data(self, field_dims, path, elements):
+        self.field_dims = field_dims
+        self.path = path
+        self.elements = elements
+        self.update()
+
+    def initializeGL(self):
+        glClearColor(0.05, 0.07, 0.1, 1)
+
+    def resizeGL(self, w, h):
+        glViewport(0, 0, w, h)
+        glMatrixMode(GL_PROJECTION)
+        glLoadIdentity()
+        glOrtho(0, self.field_dims[0], self.field_dims[1], 0, -1, 1)
+        glMatrixMode(GL_MODELVIEW)
+
+    def paintGL(self):
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
+        glLoadIdentity()
+
+        # Draw grid background
+        glColor4f(0.15, 0.2, 0.25, 0.4)
+        for x in range(int(self.field_dims[0]) + 1):
+            glBegin(GL_LINES)
+            glVertex2f(x, 0)
+            glVertex2f(x, self.field_dims[1])
+            glEnd()
+        for y in range(int(self.field_dims[1]) + 1):
+            glBegin(GL_LINES)
+            glVertex2f(0, y)
+            glVertex2f(self.field_dims[0], y)
+            glEnd()
+
+        # Draw elements
+        glColor4f(0.3, 0.6, 0.8, 0.6)
+        for e in self.elements:
+            x, y = e['x'], e['y']
+            w, h = e.get('width', 1), e.get('height', 1)
+            glBegin(GL_QUADS)
+            glVertex2f(x - w/2, y - h/2)
+            glVertex2f(x + w/2, y - h/2)
+            glVertex2f(x + w/2, y + h/2)
+            glVertex2f(x - w/2, y + h/2)
+            glEnd()
+
+        # Draw path
+        if self.path:
+            glColor4f(0.0, 1.0, 0.0, 1.0)
+            glBegin(GL_LINE_STRIP)
+            for pt in self.path:
+                glVertex2f(pt[0], pt[1])
+            glEnd()
 
 class MainWindow(QtWidgets.QMainWindow):
     def __init__(self):
@@ -9,10 +75,20 @@ class MainWindow(QtWidgets.QMainWindow):
         uic.loadUi(os.path.join(os.path.dirname(__file__), "layout.ui"), self)
         self.planButton.clicked.connect(self.plan_path)
         self.officialFieldCheck.stateChanged.connect(self.toggle_field_mode)
-        self.scene = QtWidgets.QGraphicsScene()
-        self.fieldView.setScene(self.scene)
+
+        self.fieldWidget = OpenGLField(self)
+        self.layout().addWidget(self.fieldWidget)
+        self.fieldView.hide()  # hide legacy graphics view
+
         self.populate_games()
         self.toggle_field_mode()
+        self.load_stylesheet()
+
+    def load_stylesheet(self):
+        qss_path = os.path.join(os.path.dirname(__file__), "style.qss")
+        if os.path.exists(qss_path):
+            with open(qss_path, "r") as f:
+                self.setStyleSheet(f.read())
 
     def populate_games(self):
         self.games = {}
@@ -61,44 +137,7 @@ class MainWindow(QtWidgets.QMainWindow):
         else:
             formatted = Utils.format_path(path)
             self.resultBox.setText("\n".join([f"{p['x']}, {p['y']}" for p in formatted]))
-            self.draw_field(field_width, field_length, start, goal, elements, path)
-
-    def draw_field(self, width, height, start, goal, elements, path):
-        self.scene.clear()
-        scale = 50  # 1 meter = 50 px
-        margin = 20
-        self.scene.setSceneRect(0, 0, width * scale + 2 * margin, height * scale + 2 * margin)
-
-        def field_to_scene(x, y):
-            return margin + x * scale, margin + y * scale
-
-        # Draw field border
-        self.scene.addRect(margin, margin, width * scale, height * scale, QtGui.QPen(QtCore.Qt.black))
-
-        # Draw start/goal
-        sx, sy = field_to_scene(*start)
-        gx, gy = field_to_scene(*goal)
-        self.scene.addEllipse(sx - 5, sy - 5, 10, 10, QtGui.QPen(QtCore.Qt.green), QtGui.QBrush(QtCore.Qt.green))
-        self.scene.addEllipse(gx - 5, gy - 5, 10, 10, QtGui.QPen(QtCore.Qt.red), QtGui.QBrush(QtCore.Qt.red))
-
-        # Draw field elements
-        for elem in elements:
-            ex, ey = field_to_scene(elem["x"], elem["y"])
-            ew = elem.get("width", 1.0) * scale
-            eh = elem.get("height", 1.0) * scale
-            rect = QtCore.QRectF(ex - ew/2, ey - eh/2, ew, eh)
-            self.scene.addRect(rect, QtGui.QPen(QtCore.Qt.darkBlue), QtGui.QBrush(QtCore.Qt.lightGray))
-            label = QtWidgets.QGraphicsTextItem(elem["name"])
-            label.setDefaultTextColor(QtCore.Qt.black)
-            label.setPos(ex - ew/2, ey - eh/2 - 20)
-            self.scene.addItem(label)
-
-        # Draw path
-        if path:
-            for i in range(len(path) - 1):
-                x1, y1 = field_to_scene(*path[i])
-                x2, y2 = field_to_scene(*path[i + 1])
-                self.scene.addLine(x1, y1, x2, y2, QtGui.QPen(QtCore.Qt.blue, 2))
+            self.fieldWidget.set_data((field_width, field_length), path, [e if isinstance(e, dict) else e.to_dict() for e in elements])
 
 def launch_gui():
     app = QtWidgets.QApplication(sys.argv)

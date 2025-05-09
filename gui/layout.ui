@@ -62,9 +62,23 @@
      </widget>
     </item>
 
-    <item><widget class="QPushButton" name="planButton"><property name="text"><string>Plan Path</string></property></widget></item>
-    <item><widget class="QTextEdit" name="resultBox"/></item>
-    <item><widget class="QGraphicsView" name="fieldView"><property name="minimumHeight"><number>400</number></property></widget></item>
+    <item>
+     <widget class="QPushButton" name="planButton">
+      <property name="text"><string>Plan Path</string></property>
+     </widget>
+    </item>
+
+    <item>
+     <widget class="QTextEdit" name="resultBox"/>
+    </item>
+
+    <item>
+     <widget class="QWidget" name="openGLContainer">
+      <property name="minimumHeight">
+       <number>400</number>
+      </property>
+    </widget>
+    </item>
 
    </layout>
   </widget>
