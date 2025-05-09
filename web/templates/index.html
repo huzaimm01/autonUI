@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>FRC Auton Path Planner</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <div class="container">
+    <h1>FRC Auton Path Planner</h1>
+    <form id="pathForm">
+      <label for="game">Game</label>
+      <select id="game" name="game">
+        <option value="Charged Up">Charged Up</option>
+        <option value="Crescendo">Crescendo</option>
+      </select>
+
+      <label for="fieldWidth">Field Width (m)</label>
+      <input type="number" step="0.1" id="fieldWidth" name="fieldWidth" required>
+
+      <label for="fieldLength">Field Length (m)</label>
+      <input type="number" step="0.1" id="fieldLength" name="fieldLength" required>
+
+      <label for="robotWidth">Robot Width (m)</label>
+      <input type="number" step="0.01" id="robotWidth" name="robotWidth" required>
+
+      <label for="robotLength">Robot Length (m)</label>
+      <input type="number" step="0.01" id="robotLength" name="robotLength" required>
+
+      <label for="robotHeight">Robot Height (m)</label>
+      <input type="number" step="0.01" id="robotHeight" name="robotHeight" required>
+
+      <label for="startX">Start X</label>
+      <input type="number" step="0.1" id="startX" name="startX" required>
+
+      <label for="startY">Start Y</label>
+      <input type="number" step="0.1" id="startY" name="startY" required>
+
+      <label for="goalX">Goal X</label>
+      <input type="number" step="0.1" id="goalX" name="goalX" required>
+
+      <label for="goalY">Goal Y</label>
+      <input type="number" step="0.1" id="goalY" name="goalY" required>
+
+      <button type="submit">Plan Path</button>
+    </form>
+
+    <label for="result">Resulting Path:</label>
+    <textarea id="result" readonly></textarea>
+  </div>
+
+  <script src="{{ url_for('static', filename='script.js') }}"></script>
+</body>
+</html>
