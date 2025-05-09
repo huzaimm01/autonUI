@@ -1,0 +1,14 @@
+{
+  "name": "Charged Up",
+  "field_width": 8.0,
+  "field_length": 16.0,
+  "point_values": {
+    "cone": 5,
+    "cube": 5,
+    "charge_station": 10
+  },
+  "field_elements": [
+    { "name": "Charge Station", "x": 8.0, "y": 8.0 },
+    { "name": "Grid", "x": 1.0, "y": 8.0 }
+  ]
+}
