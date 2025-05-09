@@ -1,11 +1,11 @@
+# gui/main.py
+
 import sys
 import os
 from PyQt5 import QtWidgets, uic, QtGui, QtCore
 from PyQt5.QtOpenGL import QGLWidget
 from app import GameConfig, RobotConfig, PathPlanner, Utils
-
 from OpenGL.GL import *
-from math import cos, sin, pi
 
 class OpenGLField(QGLWidget):
     def __init__(self, parent=None):
@@ -13,7 +13,7 @@ class OpenGLField(QGLWidget):
         self.path = []
         self.elements = []
         self.field_dims = (8.0, 16.0)
-        self.margin = 0.1
+        self.margin = 0.5
         self.scale = 1.0
 
     def set_data(self, field_dims, path, elements):
@@ -29,15 +29,13 @@ class OpenGLField(QGLWidget):
         glViewport(0, 0, w, h)
         glMatrixMode(GL_PROJECTION)
         glLoadIdentity()
-        glOrtho(0, self.field_dims[0], self.field_dims[1], 0, -1, 1)
+        glOrtho(-self.margin, self.field_dims[0] + self.margin,
+                self.field_dims[1] + self.margin, -self.margin, -1, 1)
         glMatrixMode(GL_MODELVIEW)
 
-    def paintGL(self):
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
-        glLoadIdentity()
-
-        # Draw grid background
-        glColor4f(0.15, 0.2, 0.25, 0.4)
+    def draw_grid(self):
+        glColor4f(0.2, 0.3, 0.4, 0.3)
+        step = 1.0
         for x in range(int(self.field_dims[0]) + 1):
             glBegin(GL_LINES)
             glVertex2f(x, 0)
@@ -49,25 +47,57 @@ class OpenGLField(QGLWidget):
             glVertex2f(self.field_dims[0], y)
             glEnd()
 
-        # Draw elements
-        glColor4f(0.3, 0.6, 0.8, 0.6)
-        for e in self.elements:
-            x, y = e['x'], e['y']
-            w, h = e.get('width', 1), e.get('height', 1)
-            glBegin(GL_QUADS)
-            glVertex2f(x - w/2, y - h/2)
-            glVertex2f(x + w/2, y - h/2)
-            glVertex2f(x + w/2, y + h/2)
-            glVertex2f(x - w/2, y + h/2)
-            glEnd()
+    def paintGL(self):
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
+        glLoadIdentity()
+        self.draw_grid()
 
-        # Draw path
+        # Draw elements by type
+        grouped = Utils.group_elements_by_type(self.elements)
+
+        # Obstacles
+        glColor4f(0.7, 0.2, 0.2, 0.7)
+        for e in grouped.get("obstacle", []):
+            self._draw_rect(e)
+
+        # Notes
+        glColor4f(0.95, 0.8, 0.2, 0.85)
+        for e in grouped.get("note", []):
+            self._draw_rect(e)
+
+        # Targets
+        glColor4f(0.2, 0.9, 0.3, 0.6)
+        for e in grouped.get("target", []):
+            self._draw_rect(e)
+
+        # Path
         if self.path:
-            glColor4f(0.0, 1.0, 0.0, 1.0)
+            glColor4f(0.0, 1.0, 1.0, 1.0)
             glBegin(GL_LINE_STRIP)
             for pt in self.path:
                 glVertex2f(pt[0], pt[1])
             glEnd()
+
+        # Start & goal
+        if self.path:
+            glColor4f(0.0, 1.0, 0.0, 1.0)
+            glBegin(GL_POINTS)
+            glVertex2f(*self.path[0])
+            glEnd()
+            glColor4f(1.0, 0.0, 0.0, 1.0)
+            glBegin(GL_POINTS)
+            glVertex2f(*self.path[-1])
+            glEnd()
+
+    def _draw_rect(self, elem):
+        x, y = elem["x"], elem["y"]
+        w, h = elem.get("width", 1), elem.get("height", 1)
+        glBegin(GL_QUADS)
+        glVertex2f(x - w / 2, y - h / 2)
+        glVertex2f(x + w / 2, y - h / 2)
+        glVertex2f(x + w / 2, y + h / 2)
+        glVertex2f(x - w / 2, y + h / 2)
+        glEnd()
 
 class MainWindow(QtWidgets.QMainWindow):
     def __init__(self):
@@ -76,9 +106,9 @@ class MainWindow(QtWidgets.QMainWindow):
         self.planButton.clicked.connect(self.plan_path)
         self.officialFieldCheck.stateChanged.connect(self.toggle_field_mode)
 
-        self.fieldWidget = OpenGLField(self)
-        self.layout().addWidget(self.fieldWidget)
-        self.fieldView.hide()  # hide legacy graphics view
+        self.fieldWidget = OpenGLField(self.centralwidget.findChild(QtWidgets.QWidget, "openGLContainer"))
+        layout = self.centralwidget.findChild(QtWidgets.QVBoxLayout, "verticalLayout")
+        layout.addWidget(self.fieldWidget)
 
         self.populate_games()
         self.toggle_field_mode()
@@ -116,7 +146,7 @@ class MainWindow(QtWidgets.QMainWindow):
             else:
                 field_width = float(self.fieldWidth.text())
                 field_length = float(self.fieldLength.text())
-                elements = game.field_elements
+                elements = [e.to_dict() for e in game.field_elements]
 
             robot_width = float(self.robotWidth.text())
             robot_length = float(self.robotLength.text())
@@ -137,7 +167,7 @@ class MainWindow(QtWidgets.QMainWindow):
         else:
             formatted = Utils.format_path(path)
             self.resultBox.setText("\n".join([f"{p['x']}, {p['y']}" for p in formatted]))
-            self.fieldWidget.set_data((field_width, field_length), path, [e if isinstance(e, dict) else e.to_dict() for e in elements])
+            self.fieldWidget.set_data((field_width, field_length), path, elements)
 
 def launch_gui():
     app = QtWidgets.QApplication(sys.argv)

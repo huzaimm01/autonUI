@@ -5,22 +5,81 @@
   "point_values": {
     "note": 2,
     "amp": 5,
-    "speaker": 10
+    "speaker": 10,
+    "trap": 5
   },
   "field_elements": [
     {
       "name": "Speaker",
-      "x": 15.0,
+      "type": "target",
+      "x": 0.5,
       "y": 4.0,
-      "width": 1.0,
+      "width": 1.2,
       "height": 1.5
     },
     {
       "name": "Amp",
-      "x": 1.0,
-      "y": 4.0,
+      "type": "target",
+      "x": 0.5,
+      "y": 1.0,
       "width": 1.0,
-      "height": 1.5
+      "height": 1.2
+    },
+    {
+      "name": "Stage Center",
+      "type": "obstacle",
+      "x": 8.02 / 2,
+      "y": 16.45 / 2,
+      "width": 1.0,
+      "height": 1.0
+    },
+    {
+      "name": "Note A",
+      "type": "note",
+      "x": 3.0,
+      "y": 2.0,
+      "width": 0.3,
+      "height": 0.3
+    },
+    {
+      "name": "Note B",
+      "type": "note",
+      "x": 5.0,
+      "y": 4.0,
+      "width": 0.3,
+      "height": 0.3
+    },
+    {
+      "name": "Note C",
+      "type": "note",
+      "x": 6.0,
+      "y": 2.0,
+      "width": 0.3,
+      "height": 0.3
+    },
+    {
+      "name": "Note D",
+      "type": "note",
+      "x": 4.0,
+      "y": 6.0,
+      "width": 0.3,
+      "height": 0.3
+    },
+    {
+      "name": "Note E",
+      "type": "note",
+      "x": 7.0,
+      "y": 7.0,
+      "width": 0.3,
+      "height": 0.3
+    },
+    {
+      "name": "Note F",
+      "type": "note",
+      "x": 2.5,
+      "y": 5.5,
+      "width": 0.3,
+      "height": 0.3
     }
   ]
 }

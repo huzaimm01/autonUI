@@ -1,5 +1,3 @@
-# app/utils.py
-
 import math
 import json
 import os
@@ -64,3 +62,18 @@ class Utils:
                 data = json.load(f)
                 return data.get("field_elements", [])
         return []
+
+    @staticmethod
+    def filter_elements_by_type(elements, type_name):
+        return [e for e in elements if e.get("type") == type_name]
+
+    @staticmethod
+    def group_elements_by_type(elements):
+        grouped = {"note": [], "obstacle": [], "target": []}
+        for e in elements:
+            t = e.get("type", "unknown")
+            if t in grouped:
+                grouped[t].append(e)
+            else:
+                grouped[t] = [e]
+        return grouped
