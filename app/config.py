@@ -1,5 +1,32 @@
 import json
 
+class FieldElement:
+    def __init__(self, name, x, y, width=1.0, height=1.0):
+        self.name = name
+        self.x = x
+        self.y = y
+        self.width = width
+        self.height = height
+
+    @staticmethod
+    def from_dict(d):
+        return FieldElement(
+            name=d["name"],
+            x=d["x"],
+            y=d["y"],
+            width=d.get("width", 1.0),
+            height=d.get("height", 1.0)
+        )
+
+    def to_dict(self):
+        return {
+            "name": self.name,
+            "x": self.x,
+            "y": self.y,
+            "width": self.width,
+            "height": self.height
+        }
+
 class GameConfig:
     def __init__(self, name, field_width, field_length, point_values, field_elements):
         self.name = name
@@ -9,20 +36,26 @@ class GameConfig:
         self.field_elements = field_elements
 
     @staticmethod
-    def from_dict(data):
-        return GameConfig(
-            name=data['name'],
-            field_width=data['field_width'],
-            field_length=data['field_length'],
-            point_values=data['point_values'],
-            field_elements=data['field_elements']
-        )
-
-    @staticmethod
-    def from_file(file_path):
-        with open(file_path, 'r') as f:
+    def from_file(path):
+        with open(path, 'r') as f:
             data = json.load(f)
-            return GameConfig.from_dict(data)
+            elements = [FieldElement.from_dict(e) for e in data.get("field_elements", [])]
+            return GameConfig(
+                name=data["name"],
+                field_width=data["field_width"],
+                field_length=data["field_length"],
+                point_values=data["point_values"],
+                field_elements=elements
+            )
+
+    def to_dict(self):
+        return {
+            "name": self.name,
+            "field_width": self.field_width,
+            "field_length": self.field_length,
+            "point_values": self.point_values,
+            "field_elements": [e.to_dict() for e in self.field_elements]
+        }
 
 class RobotConfig:
     def __init__(self, width, length, height, max_velocity, max_acceleration, drivetrain):
@@ -32,24 +65,3 @@ class RobotConfig:
         self.max_velocity = max_velocity
         self.max_acceleration = max_acceleration
         self.drivetrain = drivetrain
-
-class FieldElement:
-    def __init__(self, name, x, y):
-        self.name = name
-        self.x = x
-        self.y = y
-
-    def to_dict(self):
-        return {
-            'name': self.name,
-            'x': self.x,
-            'y': self.y
-        }
-
-    @staticmethod
-    def from_dict(data):
-        return FieldElement(
-            name=data['name'],
-            x=data['x'],
-            y=data['y']
-        )

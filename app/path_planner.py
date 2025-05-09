@@ -1,32 +1,50 @@
-import math
+from app.utils import Utils
 
 class PathPlanner:
     def __init__(self, game_config, robot_config):
-        self.game_config = game_config
-        self.robot_config = robot_config
-        self.path = []
+        self.game = game_config
+        self.robot = robot_config
 
-    def plan_path(self, start, goals):
+    def plan_path(self, start, goals, obstacles=None):
+        path = [start]
         current = start
-        self.path = [start]
+
         for goal in goals:
-            segment = self._generate_segment(current, goal)
-            self.path.extend(segment[1:])
+            segment = self._generate_path_segment(current, goal, obstacles)
+            if not segment:
+                return None
+            path += segment[1:]  # avoid duplicating the point
             current = goal
-        return self.path
 
-    def _generate_segment(self, start, end):
-        dx = end[0] - start[0]
-        dy = end[1] - start[1]
-        distance = math.hypot(dx, dy)
-        steps = max(2, int(distance / 0.1))
-        return [(
-            start[0] + dx * t / steps,
-            start[1] + dy * t / steps
-        ) for t in range(steps + 1)]
+        return path
 
-    def export_path(self):
-        return [{'x': round(p[0], 2), 'y': round(p[1], 2)} for p in self.path]
+    def _generate_path_segment(self, start, goal, obstacles):
+        points = [start]
 
-    def clear_path(self):
-        self.path = []
+        if obstacles:
+            for obstacle in obstacles:
+                ox, oy = obstacle["x"], obstacle["y"]
+                ow, oh = obstacle.get("width", 1.0), obstacle.get("height", 1.0)
+
+                if Utils.path_intersects_obstacle([start, goal], (ox, oy), ow, oh, self.robot.width, self.robot.length):
+                    # Naive avoidance: insert a side step
+                    angle = Utils.angle_between(start, goal)
+                    offset_angle = angle + 1.57  # roughly 90 degrees
+                    side_step = (
+                        start[0] + 0.8 * self.robot.width * round(math.cos(offset_angle), 2),
+                        start[1] + 0.8 * self.robot.width * round(math.sin(offset_angle), 2)
+                    )
+
+                    # Validate side step isn't inside another obstacle
+                    collision = any(
+                        Utils.path_intersects_obstacle([start, side_step], (ob["x"], ob["y"]),
+                                                       ob.get("width", 1.0), ob.get("height", 1.0),
+                                                       self.robot.width, self.robot.length)
+                        for ob in obstacles
+                    )
+                    if collision:
+                        return None
+
+                    return [start, side_step, goal]
+
+        return [start, goal]

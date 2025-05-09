@@ -1,14 +1,26 @@
 {
   "name": "Crescendo",
-  "field_width": 8.0,
-  "field_length": 16.0,
+  "field_width": 8.02,
+  "field_length": 16.45,
   "point_values": {
     "note": 2,
     "amp": 5,
     "speaker": 10
   },
   "field_elements": [
-    { "name": "Speaker", "x": 15.0, "y": 4.0 },
-    { "name": "Amp", "x": 1.0, "y": 4.0 }
+    {
+      "name": "Speaker",
+      "x": 15.0,
+      "y": 4.0,
+      "width": 1.0,
+      "height": 1.5
+    },
+    {
+      "name": "Amp",
+      "x": 1.0,
+      "y": 4.0,
+      "width": 1.0,
+      "height": 1.5
+    }
   ]
 }
