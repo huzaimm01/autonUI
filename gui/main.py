@@ -2,8 +2,17 @@ import sys
 import os
 from PyQt5 import QtWidgets, uic
 from PyQt5.QtOpenGL import QGLWidget
-from OpenGL.GL import *
-from OpenGL.GLU import *
+from OpenGL.GL import (
+    glDeleteTextures, glGenTextures, glBindTexture, glTexParameteri, glTexImage2D,
+    glClearColor, glEnable, glBlendFunc, glViewport, glMatrixMode, glLoadIdentity,
+    glOrtho, glClear, glBegin, glTexCoord2f, glVertex2f, glEnd, glColor4f,
+
+    GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_TEXTURE_MAG_FILTER, GL_LINEAR,
+    GL_RGBA, GL_UNSIGNED_BYTE, GL_BLEND, GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA,
+    GL_PROJECTION, GL_MODELVIEW, GL_COLOR_BUFFER_BIT, GL_DEPTH_BUFFER_BIT,
+    GL_LINES, GL_QUADS, GL_LINE_STRIP
+)
+from OpenGL.GLU import gluOrtho2D
 from PIL import Image
 from app import GameConfig, RobotConfig, PathPlanner, Utils
 
