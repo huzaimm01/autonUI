@@ -1,54 +1,75 @@
-from app.utils import Utils
 import math
+import json
+import os
 
-class PathPlanner:
-    def __init__(self, game_config, robot_config):
-        self.game = game_config
-        self.robot = robot_config
+class Utils:
+    @staticmethod
+    def distance(p1, p2):
+        return math.hypot(p2[0] - p1[0], p2[1] - p1[1])
 
-    def plan_path(self, start, goals, obstacles=None):
-        path = [start]
-        current = start
+    @staticmethod
+    def midpoint(p1, p2):
+        return ((p1[0] + p2[0]) / 2, (p1[1] + p2[1]) / 2)
 
-        for goal in goals:
-            segment = self._generate_path_segment(current, goal, obstacles)
-            if not segment:
-                return None
-            path += segment[1:]
-            current = goal
+    @staticmethod
+    def angle_between(p1, p2):
+        return math.atan2(p2[1] - p1[1], p2[0] - p1[0])
 
-        return path
+    @staticmethod
+    def rotate_point(point, angle, origin=(0, 0)):
+        ox, oy = origin
+        px, py = point
+        qx = ox + math.cos(angle) * (px - ox) - math.sin(angle) * (py - oy)
+        qy = oy + math.sin(angle) * (px - ox) + math.cos(angle) * (py - oy)
+        return qx, qy
 
-    def _generate_path_segment(self, start, goal, obstacles):
-        if not obstacles:
-            return [start, goal]
+    @staticmethod
+    def format_path(path):
+        return [{'x': round(x, 2), 'y': round(y, 2)} for x, y in path]
 
-        for obstacle in obstacles:
-            ox, oy = obstacle["x"], obstacle["y"]
-            ow = obstacle.get("width", 1.0)
-            oh = obstacle.get("height", 1.0)
+    @staticmethod
+    def point_in_rect(point, rect_center, width, height):
+        x, y = point
+        cx, cy = rect_center
+        return (cx - width / 2 <= x <= cx + width / 2 and
+                cy - height / 2 <= y <= cy + height / 2)
 
-            if Utils.path_intersects_obstacle([start, goal], (ox, oy), ow, oh,
-                                              self.robot.width, self.robot.length):
-                angle = Utils.angle_between(start, goal)
-                offset_distance = max(self.robot.width, self.robot.length) + 0.5
+    @staticmethod
+    def path_intersects_obstacle(path, obstacle_center, obstacle_w, obstacle_h, robot_w, robot_l):
+        for pt in path:
+            if Utils.point_in_rect(pt, obstacle_center, obstacle_w + robot_w, obstacle_h + robot_l):
+                return True
+        return False
 
-                # Try both sides of the detour
-                for offset_angle in [angle + math.pi / 2, angle - math.pi / 2]:
-                    sidestep = (
-                        start[0] + offset_distance * math.cos(offset_angle),
-                        start[1] + offset_distance * math.sin(offset_angle)
-                    )
+    @staticmethod
+    def get_official_field_dimensions(game_name):
+        base = os.path.join(os.path.dirname(__file__), "..", "data", f"{game_name}.json")
+        if os.path.exists(base):
+            with open(base) as f:
+                data = json.load(f)
+                return data.get("field_width", 8.0), data.get("field_length", 16.0)
+        return 8.0, 16.0
 
-                    if not any(Utils.path_intersects_obstacle([start, sidestep, goal],
-                                                              (o["x"], o["y"]),
-                                                              o.get("width", 1.0),
-                                                              o.get("height", 1.0),
-                                                              self.robot.width,
-                                                              self.robot.length)
-                               for o in obstacles):
-                        return [start, sidestep, goal]
+    @staticmethod
+    def get_official_elements(game_name):
+        base = os.path.join(os.path.dirname(__file__), "..", "data", f"{game_name}.json")
+        if os.path.exists(base):
+            with open(base) as f:
+                data = json.load(f)
+                return data.get("field_elements", [])
+        return []
 
-                return None
+    @staticmethod
+    def filter_elements_by_type(elements, type_name):
+        return [e for e in elements if e.get("type") == type_name]
 
-        return [start, goal]
+    @staticmethod
+    def group_elements_by_type(elements):
+        grouped = {"note": [], "obstacle": [], "target": []}
+        for e in elements:
+            t = e.get("type", "unknown")
+            if t in grouped:
+                grouped[t].append(e)
+            else:
+                grouped[t] = [e]
+        return grouped
