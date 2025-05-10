@@ -14,14 +14,12 @@ QGroupBox {
     border: 1px solid #b0bfcf;
     border-radius: 6px;
     margin-top: 10px;
-    background-color: rgba(255, 255, 255, 0.7);
+    background-color: rgba(255, 255, 255, 0.8);
 }
 QGroupBox::title {
-    subcontrol-origin: margin;
-    left: 10px;
-    padding: 0 4px;
     background-color: #e0e1dd;
     color: #1b263b;
+    padding: 0 4px;
 }
 
 QLabel {
@@ -44,7 +42,7 @@ QPushButton:pressed {
     color: #0d1b2a;
 }
 
-QLineEdit, QTextEdit {
+QLineEdit, QTextEdit, QPlainTextEdit {
     background-color: white;
     border: 1px solid #b0bfcf;
     border-radius: 4px;
@@ -62,6 +60,7 @@ QComboBox {
 }
 QComboBox QAbstractItemView {
     background-color: white;
+    border: 1px solid #b0bfcf;
     selection-background-color: #c5d0db;
     selection-color: #0d1b2a;
 }
@@ -69,13 +68,17 @@ QComboBox QAbstractItemView {
 QCheckBox {
     color: #1b263b;
 }
-QCheckBox::indicator:checked {
-    background-color: #778da9;
-    border: 1px solid #1b263b;
+QCheckBox::indicator {
+    width: 16px;
+    height: 16px;
 }
 QCheckBox::indicator:unchecked {
     background-color: white;
     border: 1px solid #778da9;
+}
+QCheckBox::indicator:checked {
+    background-color: #778da9;
+    border: 1px solid #1b263b;
 }
 
 QGraphicsView {

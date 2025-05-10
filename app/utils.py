@@ -28,10 +28,6 @@ class Utils:
         return [{'x': round(x, 2), 'y': round(y, 2)} for x, y in path]
 
     @staticmethod
-    def circles_overlap(c1, r1, c2, r2):
-        return Utils.distance(c1, c2) < (r1 + r2)
-
-    @staticmethod
     def point_in_rect(point, rect_center, width, height):
         x, y = point
         cx, cy = rect_center

@@ -1,12 +1,13 @@
 import json
 
 class FieldElement:
-    def __init__(self, name, x, y, width=1.0, height=1.0):
+    def __init__(self, name, x, y, width=1.0, height=1.0, type="obstacle"):
         self.name = name
         self.x = x
         self.y = y
         self.width = width
         self.height = height
+        self.type = type
 
     @staticmethod
     def from_dict(d):
@@ -15,7 +16,8 @@ class FieldElement:
             x=d["x"],
             y=d["y"],
             width=d.get("width", 1.0),
-            height=d.get("height", 1.0)
+            height=d.get("height", 1.0),
+            type=d.get("type", "obstacle")
         )
 
     def to_dict(self):
@@ -24,7 +26,8 @@ class FieldElement:
             "x": self.x,
             "y": self.y,
             "width": self.width,
-            "height": self.height
+            "height": self.height,
+            "type": self.type
         }
 
 class GameConfig:
@@ -47,15 +50,6 @@ class GameConfig:
                 point_values=data["point_values"],
                 field_elements=elements
             )
-
-    def to_dict(self):
-        return {
-            "name": self.name,
-            "field_width": self.field_width,
-            "field_length": self.field_length,
-            "point_values": self.point_values,
-            "field_elements": [e.to_dict() for e in self.field_elements]
-        }
 
 class RobotConfig:
     def __init__(self, width, length, height, max_velocity, max_acceleration, drivetrain):
