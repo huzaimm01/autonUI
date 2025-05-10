@@ -1,16 +1,12 @@
 import sys
 import os
-import math
 from PyQt5 import QtWidgets, uic
 from PyQt5.QtOpenGL import QGLWidget
+from OpenGL.GL import *
+from OpenGL.GLU import *
+from PIL import Image
 from app import GameConfig, RobotConfig, PathPlanner, Utils
-from OpenGL.GL import (
-    glClearColor, glViewport, glMatrixMode, GL_PROJECTION,
-    glLoadIdentity, glOrtho, GL_MODELVIEW, glClear,
-    GL_COLOR_BUFFER_BIT, GL_DEPTH_BUFFER_BIT,
-    glColor4f, glBegin, glVertex2f, glEnd,
-    GL_LINES, GL_LINE_STRIP, GL_QUADS
-)
+
 
 class OpenGLField(QGLWidget):
     def __init__(self, parent=None):
@@ -19,6 +15,7 @@ class OpenGLField(QGLWidget):
         self.elements = []
         self.field_dims = (8.0, 16.0)
         self.margin = 0.5
+        self.texture_id = None
 
     def set_data(self, field_dims, path, elements):
         self.field_dims = field_dims
@@ -26,8 +23,26 @@ class OpenGLField(QGLWidget):
         self.elements = elements
         self.update()
 
+    def set_background(self, game_name):
+        file = os.path.join(os.path.dirname(__file__), "assets", "fields", f"{game_name.lower().replace(' ', '_')}.png")
+        if os.path.exists(file):
+            image = Image.open(file).convert("RGBA")
+            ix, iy = image.size
+            image_data = image.tobytes("raw", "RGBA", 0, -1)
+
+            if self.texture_id:
+                glDeleteTextures([self.texture_id])
+            self.texture_id = glGenTextures(1)
+            glBindTexture(GL_TEXTURE_2D, self.texture_id)
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR)
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR)
+            glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, ix, iy, 0, GL_RGBA, GL_UNSIGNED_BYTE, image_data)
+
     def initializeGL(self):
         glClearColor(0.05, 0.07, 0.1, 1)
+        glEnable(GL_BLEND)
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
+        glEnable(GL_TEXTURE_2D)
 
     def resizeGL(self, w, h):
         glViewport(0, 0, w, h)
@@ -41,7 +56,15 @@ class OpenGLField(QGLWidget):
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
         glLoadIdentity()
 
-        # Draw grid
+        if self.texture_id:
+            glBindTexture(GL_TEXTURE_2D, self.texture_id)
+            glBegin(GL_QUADS)
+            glTexCoord2f(0.0, 0.0); glVertex2f(0, 0)
+            glTexCoord2f(1.0, 0.0); glVertex2f(self.field_dims[0], 0)
+            glTexCoord2f(1.0, 1.0); glVertex2f(self.field_dims[0], self.field_dims[1])
+            glTexCoord2f(0.0, 1.0); glVertex2f(0, self.field_dims[1])
+            glEnd()
+
         glColor4f(0.2, 0.3, 0.4, 0.4)
         for x in range(int(self.field_dims[0]) + 1):
             glBegin(GL_LINES)
@@ -55,23 +78,16 @@ class OpenGLField(QGLWidget):
             glEnd()
 
         grouped = Utils.group_elements_by_type(self.elements)
-
-        # Obstacles
         glColor4f(0.8, 0.2, 0.2, 0.7)
         for e in grouped.get("obstacle", []):
             self._draw_rect(e)
-
-        # Notes
         glColor4f(0.95, 0.85, 0.1, 0.9)
         for e in grouped.get("note", []):
             self._draw_rect(e)
-
-        # Targets
         glColor4f(0.2, 1.0, 0.4, 0.5)
         for e in grouped.get("target", []):
             self._draw_rect(e)
 
-        # Path
         if self.path:
             glColor4f(0.0, 1.0, 1.0, 1.0)
             glBegin(GL_LINE_STRIP)
@@ -89,22 +105,33 @@ class OpenGLField(QGLWidget):
         glVertex2f(x - w/2, y + h/2)
         glEnd()
 
+
 class MainWindow(QtWidgets.QMainWindow):
     def __init__(self):
         super().__init__()
         uic.loadUi(os.path.join(os.path.dirname(__file__), "layout.ui"), self)
-        self.planButton.clicked.connect(self.plan_path)
-        self.officialFieldCheck.stateChanged.connect(self.toggle_field_mode)
+        self.apply_theme("dark")
 
-        # Inject OpenGL scene
-        self.fieldWidget = OpenGLField(self.centralwidget.findChild(QtWidgets.QWidget, "openGLContainer"))
-        layout = self.centralwidget.findChild(QtWidgets.QVBoxLayout, "verticalLayout")
-        layout.addWidget(self.fieldWidget)
+        self.fieldWidget = OpenGLField(self.findChild(QtWidgets.QWidget, "openGLContainer"))
+        self.findChild(QtWidgets.QVBoxLayout, "verticalLayout", QtWidgets.QWidget).addWidget(self.fieldWidget)
 
         self.games = {}
         self.populate_games()
         self.toggle_field_mode()
-        self.apply_theme("dark")
+
+        self.planButton.clicked.connect(self.plan_path)
+        self.officialFieldCheck.stateChanged.connect(self.toggle_field_mode)
+        self.addGoalButton.clicked.connect(self.add_goal)
+        self.removeGoalButton.clicked.connect(self.remove_selected_goal)
+        self.clearGoalsButton.clicked.connect(self.clear_goals)
+        self.gameSelect.currentTextChanged.connect(self.update_background)
+
+    def apply_theme(self, theme):
+        file = "style_dark.qss" if theme == "dark" else "style_light.qss"
+        path = os.path.join(os.path.dirname(__file__), file)
+        if os.path.exists(path):
+            with open(path, "r") as f:
+                self.setStyleSheet(f.read())
 
     def populate_games(self):
         data_dir = os.path.join(os.path.dirname(__file__), "..", "data")
@@ -113,10 +140,30 @@ class MainWindow(QtWidgets.QMainWindow):
                 game = GameConfig.from_file(os.path.join(data_dir, file))
                 self.games[game.name] = game
                 self.gameSelect.addItem(game.name)
+        self.update_background(self.gameSelect.currentText())
+
+    def update_background(self, game_name):
+        self.fieldWidget.set_background(game_name)
 
     def toggle_field_mode(self):
         self.fieldWidth.setDisabled(self.officialFieldCheck.isChecked())
         self.fieldLength.setDisabled(self.officialFieldCheck.isChecked())
+
+    def add_goal(self):
+        x = self.goalX.text().strip()
+        y = self.goalY.text().strip()
+        if x and y:
+            self.goalList.addItem(f"{x}, {y}")
+            self.goalX.clear()
+            self.goalY.clear()
+
+    def remove_selected_goal(self):
+        row = self.goalList.currentRow()
+        if row >= 0:
+            self.goalList.takeItem(row)
+
+    def clear_goals(self):
+        self.goalList.clear()
 
     def plan_path(self):
         game = self.games[self.gameSelect.currentText()]
@@ -141,13 +188,17 @@ class MainWindow(QtWidgets.QMainWindow):
             )
 
             start = (float(self.startX.text()), float(self.startY.text()))
-            goal = (float(self.goalX.text()), float(self.goalY.text()))
+            goals = []
+            for i in range(self.goalList.count()):
+                gx, gy = map(float, self.goalList.item(i).text().split(','))
+                goals.append((gx, gy))
+
         except ValueError:
             self.resultBox.setText("Enter valid numeric values.")
             return
 
         planner = PathPlanner(game, robot)
-        path = planner.plan_path(start, [goal], elements)
+        path = planner.plan_path(start, goals, elements)
 
         if not path:
             self.resultBox.setText("No valid path found.")
@@ -155,15 +206,9 @@ class MainWindow(QtWidgets.QMainWindow):
             self.resultBox.setText("\n".join([f"{p[0]:.2f}, {p[1]:.2f}" for p in path]))
             self.fieldWidget.set_data((fw, fl), path, [e if isinstance(e, dict) else e.to_dict() for e in elements])
 
-    def apply_theme(self, theme):
-        file = "style_dark.qss" if theme == "dark" else "style_light.qss"
-        path = os.path.join(os.path.dirname(__file__), file)
-        if os.path.exists(path):
-            with open(path, "r") as f:
-                self.setStyleSheet(f.read())
 
 def launch_gui():
     app = QtWidgets.QApplication(sys.argv)
     window = MainWindow()
-    window.show()
+    window.showMaximized()
     sys.exit(app.exec_())
