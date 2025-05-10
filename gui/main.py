@@ -2,7 +2,13 @@ import sys
 import os
 from PyQt5 import QtWidgets, uic
 from app import GameConfig, RobotConfig, PathPlanner, Utils
-from OpenGL.GL import *
+from OpenGL.GL import (
+    glClearColor, glViewport, glMatrixMode, GL_PROJECTION,
+    glLoadIdentity, glOrtho, GL_MODELVIEW, glClear,
+    GL_COLOR_BUFFER_BIT, GL_DEPTH_BUFFER_BIT,
+    glColor4f, glBegin, glVertex2f, glEnd,
+    GL_LINES, GL_LINE_STRIP, GL_QUADS
+)
 from PyQt5.QtOpenGL import QGLWidget
 import math
 
