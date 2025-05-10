@@ -3,24 +3,11 @@
   "field_width": 8.01,
   "field_length": 16.46,
   "point_values": {
-    "cone": 5,
-    "cube": 5,
-    "charge_station": 10
+    "grid": 5,
+    "station": 10
   },
   "field_elements": [
-    {
-      "name": "Charge Station",
-      "x": 8.0,
-      "y": 8.0,
-      "width": 1.5,
-      "height": 1.5
-    },
-    {
-      "name": "Grid",
-      "x": 1.0,
-      "y": 8.0,
-      "width": 0.5,
-      "height": 2.0
-    }
+    { "name": "Charge Station", "x": 8.0, "y": 8.0, "width": 1.5, "height": 1.5, "type": "obstacle" },
+    { "name": "Grid", "x": 1.0, "y": 8.0, "width": 0.5, "height": 2.0, "type": "target" }
   ]
 }

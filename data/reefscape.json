@@ -1,0 +1,19 @@
+{
+  "name": "Reefscape",
+  "field_width": 8.10,
+  "field_length": 16.30,
+  "point_values": {
+    "reef": 3,
+    "crate": 7
+  },
+  "field_elements": [
+    { "name": "Reef", "x": 14.0, "y": 4.5, "width": 1.2, "height": 1.2, "type": "target" },
+    { "name": "Crate", "x": 2.0, "y": 3.5, "width": 1.0, "height": 1.0, "type": "obstacle" },
+    { "name": "Bubble 1", "x": 4.0, "y": 5.0, "width": 0.4, "height": 0.4, "type": "note" },
+    { "name": "Bubble 2", "x": 5.2, "y": 4.0, "width": 0.4, "height": 0.4, "type": "note" },
+    { "name": "Bubble 3", "x": 6.4, "y": 5.0, "width": 0.4, "height": 0.4, "type": "note" },
+    { "name": "Bubble 4", "x": 7.6, "y": 4.0, "width": 0.4, "height": 0.4, "type": "note" },
+    { "name": "Bubble 5", "x": 8.8, "y": 5.0, "width": 0.4, "height": 0.4, "type": "note" },
+    { "name": "Bubble 6", "x": 10.0, "y": 4.0, "width": 0.4, "height": 0.4, "type": "note" }
+  ]
+}

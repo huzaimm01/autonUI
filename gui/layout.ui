@@ -3,10 +3,10 @@
  <class>MainWindow</class>
  <widget class="QMainWindow" name="MainWindow">
   <property name="geometry">
-   <rect><x>0</x><y>0</y><width>800</width><height>900</height></rect>
+   <rect><x>0</x><y>0</y><width>1000</width><height>800</height></rect>
   </property>
   <property name="windowTitle">
-   <string>FRC Auton Path Planner</string>
+   <string>FRC Auton Planner</string>
   </property>
   <widget class="QWidget" name="centralwidget">
    <layout class="QVBoxLayout" name="verticalLayout">
@@ -18,7 +18,7 @@
     <item>
      <widget class="QCheckBox" name="officialFieldCheck">
       <property name="text">
-       <string>Use Official Field Layout</string>
+       <string>Use Official Field Dimensions</string>
       </property>
      </widget>
     </item>
@@ -81,7 +81,11 @@
     </item>
 
     <item>
-     <widget class="QTextEdit" name="resultBox"/>
+     <widget class="QTextEdit" name="resultBox">
+      <property name="readOnly">
+       <bool>true</bool>
+      </property>
+     </widget>
     </item>
 
     <item>

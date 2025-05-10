@@ -33,7 +33,7 @@ class PathPlanner:
                 angle = Utils.angle_between(start, goal)
                 offset_distance = max(self.robot.width, self.robot.length) + 0.5
 
-                # Try both sides of detour
+                # Try both sides of the detour
                 for offset_angle in [angle + math.pi / 2, angle - math.pi / 2]:
                     sidestep = (
                         start[0] + offset_distance * math.cos(offset_angle),

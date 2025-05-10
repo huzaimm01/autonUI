@@ -1,6 +1,8 @@
 import sys
 import os
+import math
 from PyQt5 import QtWidgets, uic
+from PyQt5.QtOpenGL import QGLWidget
 from app import GameConfig, RobotConfig, PathPlanner, Utils
 from OpenGL.GL import (
     glClearColor, glViewport, glMatrixMode, GL_PROJECTION,
@@ -9,8 +11,6 @@ from OpenGL.GL import (
     glColor4f, glBegin, glVertex2f, glEnd,
     GL_LINES, GL_LINE_STRIP, GL_QUADS
 )
-from PyQt5.QtOpenGL import QGLWidget
-import math
 
 class OpenGLField(QGLWidget):
     def __init__(self, parent=None):
@@ -42,7 +42,7 @@ class OpenGLField(QGLWidget):
         glLoadIdentity()
 
         # Draw grid
-        glColor4f(0.2, 0.3, 0.4, 0.3)
+        glColor4f(0.2, 0.3, 0.4, 0.4)
         for x in range(int(self.field_dims[0]) + 1):
             glBegin(GL_LINES)
             glVertex2f(x, 0)
@@ -57,12 +57,12 @@ class OpenGLField(QGLWidget):
         grouped = Utils.group_elements_by_type(self.elements)
 
         # Obstacles
-        glColor4f(0.7, 0.2, 0.2, 0.6)
+        glColor4f(0.8, 0.2, 0.2, 0.7)
         for e in grouped.get("obstacle", []):
             self._draw_rect(e)
 
         # Notes
-        glColor4f(0.95, 0.85, 0.1, 0.85)
+        glColor4f(0.95, 0.85, 0.1, 0.9)
         for e in grouped.get("note", []):
             self._draw_rect(e)
 
@@ -96,6 +96,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.planButton.clicked.connect(self.plan_path)
         self.officialFieldCheck.stateChanged.connect(self.toggle_field_mode)
 
+        # Inject OpenGL scene
         self.fieldWidget = OpenGLField(self.centralwidget.findChild(QtWidgets.QWidget, "openGLContainer"))
         layout = self.centralwidget.findChild(QtWidgets.QVBoxLayout, "verticalLayout")
         layout.addWidget(self.fieldWidget)
@@ -128,7 +129,7 @@ class MainWindow(QtWidgets.QMainWindow):
             else:
                 fw = float(self.fieldWidth.text())
                 fl = float(self.fieldLength.text())
-                elements = [e.to_dict() for e in game.field_elements]
+                elements = [e.to_dict() if hasattr(e, 'to_dict') else e for e in game.field_elements]
 
             robot = RobotConfig(
                 width=float(self.robotWidth.text()),
@@ -141,7 +142,6 @@ class MainWindow(QtWidgets.QMainWindow):
 
             start = (float(self.startX.text()), float(self.startY.text()))
             goal = (float(self.goalX.text()), float(self.goalY.text()))
-
         except ValueError:
             self.resultBox.setText("Enter valid numeric values.")
             return
