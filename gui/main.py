@@ -2,7 +2,8 @@ import sys
 import os
 from PyQt5 import QtWidgets, uic
 from PyQt5.QtOpenGL import QGLWidget
-from PyQt5.QtCore import QTimer
+from PyQt5.QtCore import QTimer, Qt
+from PyQt5.QtGui import QResizeEvent
 from OpenGL.GL import (
     glDeleteTextures, glGenTextures, glBindTexture, glTexParameteri, glTexImage2D,
     glClearColor, glEnable, glBlendFunc, glViewport, glMatrixMode, glLoadIdentity,
@@ -27,7 +28,8 @@ class OpenGLField(QGLWidget):
         self.field_dims = (7.925, 16.46)
         self.margin = 0
         self.texture_id = None
-        self.setMinimumSize(800, 600)
+        self.setMinimumSize(400, 300)  # Set a reasonable minimum size
+        self.setSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Expanding)  # Make field expand
         self.pending_background = None
         self.initialized = False
 
@@ -159,26 +161,111 @@ class MainWindow(QtWidgets.QMainWindow):
         uic.loadUi(os.path.join(os.path.dirname(__file__), "layout.ui"), self)
         self.apply_theme("dark")
 
-        container = self.findChild(QtWidgets.QWidget, "openGLContainer")
-        layout = container.layout() if container else self.centralWidget().findChild(QtWidgets.QVBoxLayout, "verticalLayout")
+        # Get the field preview container widget - with fallback if not found
+        self.fieldPreviewContainer = self.findChild(QtWidgets.QWidget, "fieldPreview")
+        
+        # If fieldPreview widget doesn't exist in the UI, create a sensible fallback container
+        if not self.fieldPreviewContainer:
+            print("Warning: 'fieldPreview' widget not found in UI file! Creating fallback container.")
+            # Find the right-side widget where field preview should go
+            rightContainer = self.findChild(QtWidgets.QWidget, "rightPanel")
+            
+            if not rightContainer:
+                # If no right panel exists either, use the central widget as fallback
+                rightContainer = self.centralWidget()
+                
+            # Create a new widget to serve as our field preview container
+            self.fieldPreviewContainer = QtWidgets.QWidget(rightContainer)
+            self.fieldPreviewContainer.setObjectName("fieldPreview")
+            
+            # Add it to the layout
+            if rightContainer.layout():
+                rightContainer.layout().addWidget(self.fieldPreviewContainer)
+            else:
+                # If no layout exists, create one
+                newLayout = QtWidgets.QVBoxLayout(rightContainer)
+                newLayout.addWidget(self.fieldPreviewContainer)
+                rightContainer.setLayout(newLayout)
+        
+        # Create a proper layout for the field preview if it doesn't exist
+        if not self.fieldPreviewContainer.layout():
+            self.fieldPreviewLayout = QtWidgets.QVBoxLayout(self.fieldPreviewContainer)
+            self.fieldPreviewLayout.setContentsMargins(0, 0, 0, 0)
+            self.fieldPreviewContainer.setLayout(self.fieldPreviewLayout)
+        else:
+            self.fieldPreviewLayout = self.fieldPreviewContainer.layout()
+            
+        # Create and add the OpenGL widget to the field preview area
+        self.fieldWidget = OpenGLField(self.fieldPreviewContainer)
+        self.fieldPreviewLayout.addWidget(self.fieldWidget)
 
-        self.fieldWidget = OpenGLField(container)
-        if layout:
-            layout.addWidget(self.fieldWidget)
+        # Set up the splitter to give proper space to the field preview
+        mainSplitter = self.findChild(QtWidgets.QSplitter, "mainSplitter")
+        if mainSplitter:
+            # Set reasonable initial sizes (adjust as needed)
+            mainSplitter.setSizes([400, 600])  # Left panels, right field preview
+
+        # Find and connect UI controls (with fallbacks if they don't exist)
+        self.findAndConnectUIControls()
 
         self.games = {}
         self.populate_games()
         self.toggle_field_mode()
-
-        self.planButton.clicked.connect(self.plan_path)
-        self.officialFieldCheck.stateChanged.connect(self.toggle_field_mode)
-        self.addGoalButton.clicked.connect(self.add_goal)
-        self.removeGoalButton.clicked.connect(self.remove_selected_goal)
-        self.clearGoalsButton.clicked.connect(self.clear_goals)
-        self.gameSelect.currentTextChanged.connect(self.update_background)
         
         # Update the field background after the widget is shown
         QTimer.singleShot(100, lambda: self.update_background(self.gameSelect.currentText()))
+
+    def findAndConnectUIControls(self):
+        """Find all the UI controls and connect them with fallbacks if they don't exist"""
+        # Find all necessary UI elements with fallbacks
+        self.planButton = self.findChildWithFallback(QtWidgets.QPushButton, "planButton")
+        self.officialFieldCheck = self.findChildWithFallback(QtWidgets.QCheckBox, "officialFieldCheck")
+        self.addGoalButton = self.findChildWithFallback(QtWidgets.QPushButton, "addGoalButton")
+        self.removeGoalButton = self.findChildWithFallback(QtWidgets.QPushButton, "removeGoalButton")
+        self.clearGoalsButton = self.findChildWithFallback(QtWidgets.QPushButton, "clearGoalsButton")
+        self.gameSelect = self.findChildWithFallback(QtWidgets.QComboBox, "gameSelect")
+        self.goalList = self.findChildWithFallback(QtWidgets.QListWidget, "goalList")
+        self.goalX = self.findChildWithFallback(QtWidgets.QLineEdit, "goalX")
+        self.goalY = self.findChildWithFallback(QtWidgets.QLineEdit, "goalY")
+        self.fieldWidth = self.findChildWithFallback(QtWidgets.QLineEdit, "fieldWidth")
+        self.fieldLength = self.findChildWithFallback(QtWidgets.QLineEdit, "fieldLength")
+        self.robotWidth = self.findChildWithFallback(QtWidgets.QLineEdit, "robotWidth")
+        self.robotLength = self.findChildWithFallback(QtWidgets.QLineEdit, "robotLength")
+        self.robotHeight = self.findChildWithFallback(QtWidgets.QLineEdit, "robotHeight")
+        self.startX = self.findChildWithFallback(QtWidgets.QLineEdit, "startX")
+        self.startY = self.findChildWithFallback(QtWidgets.QLineEdit, "startY")
+        self.resultBox = self.findChildWithFallback(QtWidgets.QTextEdit, "resultBox")
+        
+        # Connect signals to slots if the UI elements exist
+        if self.planButton:
+            self.planButton.clicked.connect(self.plan_path)
+        if self.officialFieldCheck:
+            self.officialFieldCheck.stateChanged.connect(self.toggle_field_mode)
+        if self.addGoalButton:
+            self.addGoalButton.clicked.connect(self.add_goal)
+        if self.removeGoalButton:
+            self.removeGoalButton.clicked.connect(self.remove_selected_goal)
+        if self.clearGoalsButton:
+            self.clearGoalsButton.clicked.connect(self.clear_goals)
+        if self.gameSelect:
+            self.gameSelect.currentTextChanged.connect(self.update_background)
+
+    def findChildWithFallback(self, widgetType, name):
+        """Find a child widget by name and type with a fallback if not found"""
+        widget = self.findChild(widgetType, name)
+        if widget is None:
+            print(f"Warning: UI element '{name}' not found! Some functionality may be limited.")
+            
+            # Create fallback widgets for essential controls
+            if name == "gameSelect":
+                widget = QtWidgets.QComboBox(self)
+                widget.setObjectName(name)
+            elif name == "resultBox":
+                widget = QtWidgets.QTextEdit(self)
+                widget.setObjectName(name)
+            # Add more fallbacks for critical widgets if needed
+                
+        return widget
 
     def apply_theme(self, theme):
         file = "style_dark.qss" if theme == "dark" else "style_light.qss"
@@ -188,30 +275,74 @@ class MainWindow(QtWidgets.QMainWindow):
                 self.setStyleSheet(f.read())
 
     def populate_games(self):
+        if not hasattr(self, 'gameSelect') or self.gameSelect is None:
+            print("Cannot populate games: gameSelect widget not found")
+            return
+            
         data_dir = os.path.join(os.path.dirname(__file__), "..", "data")
-        for file in os.listdir(data_dir):
-            if file.endswith(".json"):
-                game = GameConfig.from_file(os.path.join(data_dir, file))
-                self.games[game.name] = game
-                self.gameSelect.addItem(game.name)
-        # Don't update background here - wait until the OpenGL context is ready
+        
+        # Check if data directory exists
+        if not os.path.exists(data_dir):
+            print(f"Warning: Data directory not found at {data_dir}")
+            self.resultBox.setText(f"Error: Data directory not found at {data_dir}")
+            return
+            
+        try:
+            for file in os.listdir(data_dir):
+                if file.endswith(".json"):
+                    try:
+                        game = GameConfig.from_file(os.path.join(data_dir, file))
+                        self.games[game.name] = game
+                        self.gameSelect.addItem(game.name)
+                    except Exception as e:
+                        print(f"Error loading game config {file}: {e}")
+        except Exception as e:
+            print(f"Error accessing data directory: {e}")
+            self.resultBox.setText(f"Error accessing game data: {e}")
+
+    def resizeEvent(self, event: QResizeEvent):
+        """Handle window resize events to ensure field preview gets proper space."""
+        super().resizeEvent(event)
+        # Make sure the OpenGL widget gets updated when window is resized
+        if hasattr(self, 'fieldWidget'):
+            self.fieldWidget.update()
 
     def update_background(self, game_name):
+        if not game_name:
+            print("No game selected, skipping background update")
+            return
+            
         self.fieldWidget.set_background(game_name)
         game = self.games.get(game_name)
         if game:
             dims = (game.field_width, game.field_length)
             elements = [e.to_dict() if hasattr(e, "to_dict") else e for e in game.field_elements]
+            
+            # Handle the case where file paths might not exist
             obstacle_path = os.path.join(os.path.dirname(__file__), "..", "frc_field_grid_with_obstacles.json")
-            polygons = Utils.get_polygon_obstacles(game_name, obstacle_path)
+            try:
+                polygons = Utils.get_polygon_obstacles(game_name, obstacle_path)
+            except Exception as e:
+                print(f"Warning: Could not load polygon obstacles: {e}")
+                polygons = []
+                
             self.fieldWidget.set_data(dims, [], elements, polygon_obstacles=polygons)
             self.fieldWidget.repaint()
 
     def toggle_field_mode(self):
+        if not hasattr(self, 'fieldWidth') or not hasattr(self, 'fieldLength') or \
+           not hasattr(self, 'officialFieldCheck'):
+            print("Missing UI elements for toggle_field_mode")
+            return
+            
         self.fieldWidth.setDisabled(self.officialFieldCheck.isChecked())
         self.fieldLength.setDisabled(self.officialFieldCheck.isChecked())
 
     def add_goal(self):
+        if not hasattr(self, 'goalX') or not hasattr(self, 'goalY') or not hasattr(self, 'goalList'):
+            print("Missing UI elements for add_goal")
+            return
+            
         x = self.goalX.text().strip()
         y = self.goalY.text().strip()
         if x and y:
@@ -220,60 +351,104 @@ class MainWindow(QtWidgets.QMainWindow):
             self.goalY.clear()
 
     def remove_selected_goal(self):
+        if not hasattr(self, 'goalList'):
+            print("Missing UI elements for remove_selected_goal")
+            return
+            
         row = self.goalList.currentRow()
         if row >= 0:
             self.goalList.takeItem(row)
 
     def clear_goals(self):
+        if not hasattr(self, 'goalList'):
+            print("Missing UI elements for clear_goals")
+            return
+            
         self.goalList.clear()
 
     def plan_path(self):
-        game = self.games[self.gameSelect.currentText()]
-        official = self.officialFieldCheck.isChecked()
+        # Check if all required UI elements are available
+        required_widgets = ['gameSelect', 'officialFieldCheck', 'fieldWidth', 'fieldLength',
+                           'robotWidth', 'robotLength', 'robotHeight', 'startX', 'startY', 
+                           'goalList', 'resultBox', 'fieldWidget']
+                           
+        for widget_name in required_widgets:
+            if not hasattr(self, widget_name) or getattr(self, widget_name) is None:
+                error_msg = f"Missing UI element: {widget_name}. Cannot plan path."
+                print(error_msg)
+                if hasattr(self, 'resultBox') and self.resultBox:
+                    self.resultBox.setText(error_msg)
+                return
+                
+        try:    
+            game_name = self.gameSelect.currentText()
+            if not game_name or game_name not in self.games:
+                self.resultBox.setText("No game selected or game not found.")
+                return
+                
+            game = self.games[game_name]
+            official = self.officialFieldCheck.isChecked()
 
-        try:
-            if official:
-                fw, fl = Utils.get_official_field_dimensions(game.name)
-                elements = Utils.get_official_elements(game.name)
+            try:
+                if official:
+                    fw, fl = Utils.get_official_field_dimensions(game.name)
+                    elements = Utils.get_official_elements(game.name)
+                else:
+                    fw = float(self.fieldWidth.text())
+                    fl = float(self.fieldLength.text())
+                    elements = [e.to_dict() if hasattr(e, 'to_dict') else e for e in game.field_elements]
+
+                robot = RobotConfig(
+                    width=float(self.robotWidth.text()),
+                    length=float(self.robotLength.text()),
+                    height=float(self.robotHeight.text()),
+                    max_velocity=2.0,
+                    max_acceleration=1.0,
+                    drivetrain="swerve"
+                )
+
+                start = (float(self.startX.text()), float(self.startY.text()))
+                goals = []
+                for i in range(self.goalList.count()):
+                    gx, gy = map(float, self.goalList.item(i).text().split(','))
+                    goals.append((gx, gy))
+
+            except ValueError as e:
+                self.resultBox.setText(f"Enter valid numeric values: {str(e)}")
+                return
+
+            planner = PathPlanner(game, robot)
+            path = planner.plan_path(start, goals)
+            path = Utils.smooth_catmull_rom_path(path) if path else []
+
+            if not path:
+                self.resultBox.setText("No valid path found.")
             else:
-                fw = float(self.fieldWidth.text())
-                fl = float(self.fieldLength.text())
-                elements = [e.to_dict() if hasattr(e, 'to_dict') else e for e in game.field_elements]
-
-            robot = RobotConfig(
-                width=float(self.robotWidth.text()),
-                length=float(self.robotLength.text()),
-                height=float(self.robotHeight.text()),
-                max_velocity=2.0,
-                max_acceleration=1.0,
-                drivetrain="swerve"
-            )
-
-            start = (float(self.startX.text()), float(self.startY.text()))
-            goals = []
-            for i in range(self.goalList.count()):
-                gx, gy = map(float, self.goalList.item(i).text().split(','))
-                goals.append((gx, gy))
-
-        except ValueError:
-            self.resultBox.setText("Enter valid numeric values.")
-            return
-
-        planner = PathPlanner(game, robot)
-        path = planner.plan_path(start, goals)
-        path = Utils.smooth_catmull_rom_path(path) if path else []
-
-        if not path:
-            self.resultBox.setText("No valid path found.")
-        else:
-            self.resultBox.setText("\n".join([f"{p[0]:.2f}, {p[1]:.2f}" for p in path]))
-            self.fieldWidget.set_data((fw, fl), path, elements, self.fieldWidget.polygon_obstacles)
-            Utils.write_path_to_json(path)
-            Utils.write_path_to_csv(path)
+                self.resultBox.setText("\n".join([f"{p[0]:.2f}, {p[1]:.2f}" for p in path]))
+                self.fieldWidget.set_data((fw, fl), path, elements, self.fieldWidget.polygon_obstacles)
+                try:
+                    Utils.write_path_to_json(path)
+                    Utils.write_path_to_csv(path)
+                except Exception as e:
+                    print(f"Warning: Could not write path to files: {e}")
+                    
+        except Exception as e:
+            error_msg = f"Error planning path: {str(e)}"
+            print(error_msg)
+            self.resultBox.setText(error_msg)
 
 
 def launch_gui():
     app = QtWidgets.QApplication(sys.argv)
-    window = MainWindow()
-    window.showMaximized()
-    sys.exit(app.exec_())
+    try:
+        window = MainWindow()
+        window.showMaximized()
+        sys.exit(app.exec_())
+    except Exception as e:
+        error_dialog = QtWidgets.QMessageBox()
+        error_dialog.setIcon(QtWidgets.QMessageBox.Critical)
+        error_dialog.setText(f"Error launching application: {str(e)}")
+        error_dialog.setWindowTitle("Application Error")
+        error_dialog.setDetailedText(f"Details:\n{str(e)}")
+        error_dialog.exec_()
+        sys.exit(1)
