@@ -8,9 +8,9 @@ from OpenGL.GL import (
     glOrtho, glClear, glBegin, glTexCoord2f, glVertex2f, glEnd, glColor4f,
 
     GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_TEXTURE_MAG_FILTER, GL_LINEAR,
-    GL_RGBA, GL_UNSIGNED_BYTE, GL_BLEND, GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA,
+    GL_RGBA, GL_UNSIGNED_BYTE, GL_BLEND,GL_LINES, GL_QUADS, GL_LINE_LOOP, GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA,
     GL_PROJECTION, GL_MODELVIEW, GL_COLOR_BUFFER_BIT, GL_DEPTH_BUFFER_BIT,
-    GL_LINES, GL_QUADS, GL_LINE_STRIP
+    GL_LINES, GL_QUADS, GL_LINE_STRIP, GL_LINES, GL_QUADS, GL_LINE_LOOP
 )
 from OpenGL.GLU import gluOrtho2D
 from PIL import Image
@@ -232,13 +232,15 @@ class MainWindow(QtWidgets.QMainWindow):
 
         planner = PathPlanner(game, robot)
         path = planner.plan_path(start, goals)
+        path = Utils.smooth_catmull_rom_path(path) if path else []
 
         if not path:
             self.resultBox.setText("No valid path found.")
         else:
             self.resultBox.setText("\n".join([f"{p[0]:.2f}, {p[1]:.2f}" for p in path]))
             self.fieldWidget.set_data((fw, fl), path, elements, self.fieldWidget.polygon_obstacles)
-
+            Utils.write_path_to_json(path, "path.json")
+            Utils.write_path_to_csv(path, "path.csv")
 
 def launch_gui():
     app = QtWidgets.QApplication(sys.argv)

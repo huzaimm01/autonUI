@@ -1,6 +1,7 @@
 import math
 import json
 import os
+import csv
 
 class Utils:
     @staticmethod
@@ -87,3 +88,43 @@ class Utils:
                 polygon = [{"x": x * feet_to_meters, "y": y * feet_to_meters} for x, y in points]
                 polygons.append(polygon)
         return polygons
+
+    @staticmethod
+    def smooth_catmull_rom_path(points, resolution=10):
+        def interpolate(p0, p1, p2, p3, t):
+            t2 = t * t
+            t3 = t2 * t
+            return (
+                0.5 * ((2 * p1[0]) +
+                       (-p0[0] + p2[0]) * t +
+                       (2*p0[0] - 5*p1[0] + 4*p2[0] - p3[0]) * t2 +
+                       (-p0[0] + 3*p1[0] - 3*p2[0] + p3[0]) * t3),
+                0.5 * ((2 * p1[1]) +
+                       (-p0[1] + p2[1]) * t +
+                       (2*p0[1] - 5*p1[1] + 4*p2[1] - p3[1]) * t2 +
+                       (-p0[1] + 3*p1[1] - 3*p2[1] + p3[1]) * t3)
+            )
+        if len(points) < 4:
+            return points
+        new_path = []
+        for i in range(1, len(points) - 2):
+            for t in [j / resolution for j in range(resolution)]:
+                pt = interpolate(points[i - 1], points[i], points[i + 1], points[i + 2], t)
+                new_path.append(pt)
+        new_path.append(points[-2])
+        new_path.append(points[-1])
+        return new_path
+
+    @staticmethod
+    def write_path_to_json(path, filename="path.json"):
+        data = [{"x": round(x, 3), "y": round(y, 3)} for x, y in path]
+        with open(filename, "w") as f:
+            json.dump(data, f, indent=2)
+
+    @staticmethod
+    def write_path_to_csv(path, filename="path.csv"):
+        with open(filename, "w", newline="") as f:
+            writer = csv.writer(f)
+            writer.writerow(["x", "y"])
+            for x, y in path:
+                writer.writerow([round(x, 3), round(y, 3)])
