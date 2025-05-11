@@ -44,6 +44,7 @@ class OpenGLField(QGLWidget):
             if self.texture_id:
                 glDeleteTextures([self.texture_id])
             self.texture_id = glGenTextures(1)
+            glColor4f(1.0, 1.0, 1.0, 1.0)
             glBindTexture(GL_TEXTURE_2D, self.texture_id)
             glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR)
             glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR)
@@ -70,11 +71,11 @@ class OpenGLField(QGLWidget):
         if self.texture_id:
             glBindTexture(GL_TEXTURE_2D, self.texture_id)
             glBegin(GL_QUADS)
-            glTexCoord2f(0.0, 0.0); glVertex2f(0, 0)
-            glTexCoord2f(1.0, 0.0); glVertex2f(self.field_dims[0], 0)
-            glTexCoord2f(1.0, 1.0); glVertex2f(self.field_dims[0], self.field_dims[1])
-            glTexCoord2f(0.0, 1.0); glVertex2f(0, self.field_dims[1])
-            glEnd()
+            glTexCoord2f(0.0, 1.0); glVertex2f(0, 0)
+            glTexCoord2f(1.0, 1.0); glVertex2f(self.field_dims[0], 0)
+            glTexCoord2f(1.0, 0.0); glVertex2f(self.field_dims[0], self.field_dims[1])
+            glTexCoord2f(0.0, 0.0); glVertex2f(0, self.field_dims[1])
+            glEnd() 
 
         # Draw grid
         glColor4f(0.2, 0.3, 0.4, 0.4)
