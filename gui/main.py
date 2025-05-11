@@ -22,18 +22,20 @@ class OpenGLField(QGLWidget):
         super(OpenGLField, self).__init__(parent)
         self.path = []
         self.elements = []
-        self.field_dims = (8.0, 16.0)
+        self.polygon_obstacles = []
+        self.field_dims = (7.925, 16.46)  # 26x54 ft in meters
         self.margin = 0.5
         self.texture_id = None
 
-    def set_data(self, field_dims, path, elements):
+    def set_data(self, field_dims, path, elements, polygon_obstacles=None):
         self.field_dims = field_dims
         self.path = path
         self.elements = elements
+        self.polygon_obstacles = polygon_obstacles if polygon_obstacles else []
         self.update()
 
     def set_background(self, game_name):
-        file = os.path.join(os.path.dirname(__file__), "assets", "fields", f"{game_name.lower().replace(' ', '_')}.png")
+        file = os.path.join(os.path.dirname(__file__), "assets", "field_backgrounds", f"{game_name.lower().replace(' ', '_')}.png")
         if os.path.exists(file):
             image = Image.open(file).convert("RGBA")
             ix, iy = image.size
@@ -74,6 +76,7 @@ class OpenGLField(QGLWidget):
             glTexCoord2f(0.0, 1.0); glVertex2f(0, self.field_dims[1])
             glEnd()
 
+        # Draw grid
         glColor4f(0.2, 0.3, 0.4, 0.4)
         for x in range(int(self.field_dims[0]) + 1):
             glBegin(GL_LINES)
@@ -86,6 +89,15 @@ class OpenGLField(QGLWidget):
             glVertex2f(self.field_dims[0], y)
             glEnd()
 
+        # Polygonal obstacles (outline)
+        glColor4f(1.0, 0.5, 0.1, 0.8)
+        for poly in self.polygon_obstacles:
+            glBegin(GL_LINE_LOOP)
+            for pt in poly:
+                glVertex2f(pt["x"], pt["y"])
+            glEnd()
+
+        # Rectangular game elements
         grouped = Utils.group_elements_by_type(self.elements)
         glColor4f(0.8, 0.2, 0.2, 0.7)
         for e in grouped.get("obstacle", []):
@@ -97,6 +109,7 @@ class OpenGLField(QGLWidget):
         for e in grouped.get("target", []):
             self._draw_rect(e)
 
+        # Path
         if self.path:
             glColor4f(0.0, 1.0, 1.0, 1.0)
             glBegin(GL_LINE_STRIP)
@@ -108,10 +121,10 @@ class OpenGLField(QGLWidget):
         x, y = e["x"], e["y"]
         w, h = e.get("width", 1.0), e.get("height", 1.0)
         glBegin(GL_QUADS)
-        glVertex2f(x - w/2, y - h/2)
-        glVertex2f(x + w/2, y - h/2)
-        glVertex2f(x + w/2, y + h/2)
-        glVertex2f(x - w/2, y + h/2)
+        glVertex2f(x - w / 2, y - h / 2)
+        glVertex2f(x + w / 2, y - h / 2)
+        glVertex2f(x + w / 2, y + h / 2)
+        glVertex2f(x - w / 2, y + h / 2)
         glEnd()
 
 
@@ -157,6 +170,13 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def update_background(self, game_name):
         self.fieldWidget.set_background(game_name)
+        game = self.games.get(game_name)
+        if game:
+            dims = (game.field_width, game.field_length)
+            elements = [e.to_dict() if hasattr(e, "to_dict") else e for e in game.field_elements]
+            obstacle_path = os.path.join(os.path.dirname(__file__), "..", "frc_field_grid_with_obstacles.json")
+            polygons = Utils.get_polygon_obstacles(game_name, obstacle_path)
+            self.fieldWidget.set_data(dims, [], elements, polygon_obstacles=polygons)
 
     def toggle_field_mode(self):
         self.fieldWidth.setDisabled(self.officialFieldCheck.isChecked())
@@ -217,7 +237,7 @@ class MainWindow(QtWidgets.QMainWindow):
             self.resultBox.setText("No valid path found.")
         else:
             self.resultBox.setText("\n".join([f"{p[0]:.2f}, {p[1]:.2f}" for p in path]))
-            self.fieldWidget.set_data((fw, fl), path, [e if isinstance(e, dict) else e.to_dict() for e in elements])
+            self.fieldWidget.set_data((fw, fl), path, elements, self.fieldWidget.polygon_obstacles)
 
 
 def launch_gui():

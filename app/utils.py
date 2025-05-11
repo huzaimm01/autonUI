@@ -1,4 +1,6 @@
 import math
+import json
+import os
 
 class Utils:
     @staticmethod
@@ -6,12 +8,12 @@ class Utils:
         return math.hypot(p2[0] - p1[0], p2[1] - p1[1])
 
     @staticmethod
-    def angle_between(p1, p2):
-        return math.atan2(p2[1] - p1[1], p2[0] - p1[0])
-
-    @staticmethod
     def midpoint(p1, p2):
         return ((p1[0] + p2[0]) / 2, (p1[1] + p2[1]) / 2)
+
+    @staticmethod
+    def angle_between(p1, p2):
+        return math.atan2(p2[1] - p1[1], p2[0] - p1[0])
 
     @staticmethod
     def rotate_point(point, angle, origin=(0, 0)):
@@ -24,10 +26,6 @@ class Utils:
     @staticmethod
     def format_path(path):
         return [{'x': round(x, 2), 'y': round(y, 2)} for x, y in path]
-
-    @staticmethod
-    def circles_overlap(c1, r1, c2, r2):
-        return Utils.distance(c1, c2) < (r1 + r2)
 
     @staticmethod
     def point_in_rect(point, rect_center, width, height):
@@ -45,48 +43,47 @@ class Utils:
 
     @staticmethod
     def get_official_field_dimensions(game_name):
-        if game_name == "Charged Up":
-            return 8.01, 16.46
-        elif game_name == "Crescendo":
-            return 8.02, 16.45
-        elif game_name == "Reefscape":
-            return 8.10, 16.30
-        else:
-            return 8.0, 16.0
+        base = os.path.join(os.path.dirname(__file__), "..", "data", f"{game_name}.json")
+        if os.path.exists(base):
+            with open(base) as f:
+                data = json.load(f)
+                return data.get("field_width", 8.0), data.get("field_length", 16.0)
+        return 8.0, 16.0
 
     @staticmethod
     def get_official_elements(game_name):
-        if game_name == "Charged Up":
-            return [
-                {"name": "Charge Station", "x": 8.0, "y": 8.0, "width": 1.5, "height": 1.5, "type": "obstacle"},
-                {"name": "Grid", "x": 1.0, "y": 8.0, "width": 0.5, "height": 2.0, "type": "target"}
-            ]
-        elif game_name == "Crescendo":
-            return [
-                {"name": "Speaker", "x": 15.0, "y": 4.0, "width": 1.0, "height": 1.5, "type": "target"},
-                {"name": "Amp", "x": 1.0, "y": 4.0, "width": 1.0, "height": 1.5, "type": "target"},
-                *[
-                    {"name": f"Note {i+1}", "x": 4.5 + i * 1.1, "y": 2.0 + (i % 2) * 2,
-                     "width": 0.3, "height": 0.3, "type": "note"}
-                    for i in range(9)
-                ]
-            ]
-        elif game_name == "Reefscape":
-            return [
-                {"name": "Reef", "x": 14.0, "y": 4.5, "width": 1.2, "height": 1.2, "type": "target"},
-                {"name": "Crate", "x": 2.0, "y": 3.5, "width": 1.0, "height": 1.0, "type": "obstacle"},
-                *[
-                    {"name": f"Bubble {i+1}", "x": 4.0 + i * 1.2, "y": 5.0 - (i % 2),
-                     "width": 0.4, "height": 0.4, "type": "note"}
-                    for i in range(6)
-                ]
-            ]
-        else:
-            return []
+        base = os.path.join(os.path.dirname(__file__), "..", "data", f"{game_name}.json")
+        if os.path.exists(base):
+            with open(base) as f:
+                data = json.load(f)
+                return data.get("field_elements", [])
+        return []
+
+    @staticmethod
+    def filter_elements_by_type(elements, type_name):
+        return [e for e in elements if e.get("type") == type_name]
 
     @staticmethod
     def group_elements_by_type(elements):
-        grouped = {"obstacle": [], "note": [], "target": [], "unknown": []}
+        grouped = {"note": [], "obstacle": [], "target": []}
         for e in elements:
-            grouped.setdefault(e.get("type", "unknown"), []).append(e)
+            t = e.get("type", "unknown")
+            if t in grouped:
+                grouped[t].append(e)
+            else:
+                grouped[t] = [e]
         return grouped
+
+    @staticmethod
+    def get_polygon_obstacles(game_name, json_path):
+        feet_to_meters = 0.3048
+        with open(json_path, "r") as f:
+            data = json.load(f)
+
+        polygons = []
+        for obj in data.get("obstacles", []):
+            if obj.get("game", "").lower() == game_name.lower():
+                points = obj.get("points", [])
+                polygon = [{"x": x * feet_to_meters, "y": y * feet_to_meters} for x, y in points]
+                polygons.append(polygon)
+        return polygons

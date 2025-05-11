@@ -1,5 +1,5 @@
 * {
-    font-family: 'Segoe UI', sans-serif;
+    font-family: "Cascadia Code", Consolas, monospace;
     font-size: 14px;
     color: #e0e1dd;
     background: transparent;
