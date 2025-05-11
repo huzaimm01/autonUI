@@ -1,75 +1,99 @@
 import math
-import json
-import os
+import heapq
+from app.utils import Utils  # Make sure this import path is valid in your structure
 
-class Utils:
-    @staticmethod
-    def distance(p1, p2):
-        return math.hypot(p2[0] - p1[0], p2[1] - p1[1])
+class GridNode:
+    def __init__(self, x, y, cost=0, parent=None):
+        self.x = x
+        self.y = y
+        self.cost = cost
+        self.parent = parent
 
-    @staticmethod
-    def midpoint(p1, p2):
-        return ((p1[0] + p2[0]) / 2, (p1[1] + p2[1]) / 2)
+    def __lt__(self, other):
+        return self.cost < other.cost
 
-    @staticmethod
-    def angle_between(p1, p2):
-        return math.atan2(p2[1] - p1[1], p2[0] - p1[0])
+    def pos(self):
+        return (self.x, self.y)
 
-    @staticmethod
-    def rotate_point(point, angle, origin=(0, 0)):
-        ox, oy = origin
-        px, py = point
-        qx = ox + math.cos(angle) * (px - ox) - math.sin(angle) * (py - oy)
-        qy = oy + math.sin(angle) * (px - ox) + math.cos(angle) * (py - oy)
-        return qx, qy
+class PathPlanner:
+    def __init__(self, game_config, robot_config, resolution=0.2):
+        self.game = game_config
+        self.robot = robot_config
+        self.resolution = resolution
+        self.width = int(self.game.field_width / resolution)
+        self.height = int(self.game.field_length / resolution)
 
-    @staticmethod
-    def format_path(path):
-        return [{'x': round(x, 2), 'y': round(y, 2)} for x, y in path]
-
-    @staticmethod
-    def point_in_rect(point, rect_center, width, height):
-        x, y = point
-        cx, cy = rect_center
-        return (cx - width / 2 <= x <= cx + width / 2 and
-                cy - height / 2 <= y <= cy + height / 2)
-
-    @staticmethod
-    def path_intersects_obstacle(path, obstacle_center, obstacle_w, obstacle_h, robot_w, robot_l):
-        for pt in path:
-            if Utils.point_in_rect(pt, obstacle_center, obstacle_w + robot_w, obstacle_h + robot_l):
+    def is_obstacle(self, x, y):
+        rx, ry = x * self.resolution, y * self.resolution
+        for obj in self.game.field_elements:
+            if abs(rx - obj.x) < (obj.width + self.robot.width) / 2 and abs(ry - obj.y) < (obj.height + self.robot.length) / 2:
                 return True
         return False
 
-    @staticmethod
-    def get_official_field_dimensions(game_name):
-        base = os.path.join(os.path.dirname(__file__), "..", "data", f"{game_name}.json")
-        if os.path.exists(base):
-            with open(base) as f:
-                data = json.load(f)
-                return data.get("field_width", 8.0), data.get("field_length", 16.0)
-        return 8.0, 16.0
+    def heuristic(self, a, b):
+        return math.hypot(b[0] - a[0], b[1] - a[1])
 
-    @staticmethod
-    def get_official_elements(game_name):
-        base = os.path.join(os.path.dirname(__file__), "..", "data", f"{game_name}.json")
-        if os.path.exists(base):
-            with open(base) as f:
-                data = json.load(f)
-                return data.get("field_elements", [])
+    def a_star(self, start, goal):
+        sx, sy = int(start[0] / self.resolution), int(start[1] / self.resolution)
+        gx, gy = int(goal[0] / self.resolution), int(goal[1] / self.resolution)
+
+        open_set = []
+        heapq.heappush(open_set, (0, GridNode(sx, sy)))
+        came_from = {}
+        cost_so_far = {(sx, sy): 0}
+
+        directions = [(-1, 0), (1, 0), (0, -1), (0, 1),
+                      (-1, -1), (1, -1), (-1, 1), (1, 1)]
+
+        while open_set:
+            _, current = heapq.heappop(open_set)
+
+            if (current.x, current.y) == (gx, gy):
+                path = []
+                while current:
+                    path.append((current.x * self.resolution, current.y * self.resolution))
+                    current = current.parent
+                return path[::-1]
+
+            for dx, dy in directions:
+                nx, ny = current.x + dx, current.y + dy
+                if 0 <= nx < self.width and 0 <= ny < self.height:
+                    if self.is_obstacle(nx, ny):
+                        continue
+                    new_cost = cost_so_far[(current.x, current.y)] + math.hypot(dx, dy)
+                    if (nx, ny) not in cost_so_far or new_cost < cost_so_far[(nx, ny)]:
+                        cost_so_far[(nx, ny)] = new_cost
+                        priority = new_cost + self.heuristic((nx, ny), (gx, gy))
+                        heapq.heappush(open_set, (priority, GridNode(nx, ny, new_cost, current)))
+
         return []
 
-    @staticmethod
-    def filter_elements_by_type(elements, type_name):
-        return [e for e in elements if e.get("type") == type_name]
+    def smooth_path(self, path, alpha=0.1, beta=0.3, tolerance=1e-5):
+        if not path or len(path) < 3:
+            return path
 
-    @staticmethod
-    def group_elements_by_type(elements):
-        grouped = {"note": [], "obstacle": [], "target": []}
-        for e in elements:
-            t = e.get("type", "unknown")
-            if t in grouped:
-                grouped[t].append(e)
-            else:
-                grouped[t] = [e]
-        return grouped
+        new_path = [list(p) for p in path]
+        change = tolerance
+        while change >= tolerance:
+            change = 0.0
+            for i in range(1, len(path) - 1):
+                for j in range(2):
+                    aux = new_path[i][j]
+                    new_path[i][j] += alpha * (path[i][j] - new_path[i][j])
+                    new_path[i][j] += beta * (new_path[i - 1][j] + new_path[i + 1][j] - 2.0 * new_path[i][j])
+                    change += abs(aux - new_path[i][j])
+        return [tuple(p) for p in new_path]
+
+    def plan_path(self, start, goals):
+        full_path = []
+        current = start
+
+        for goal in goals:
+            segment = self.a_star(current, goal)
+            if not segment:
+                print(f"⚠️ No valid path from {current} to {goal}")
+                return []
+            full_path.extend(segment if not full_path else segment[1:])
+            current = goal
+
+        return self.smooth_path(full_path)
