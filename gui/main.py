@@ -23,9 +23,10 @@ class OpenGLField(QGLWidget):
         self.path = []
         self.elements = []
         self.polygon_obstacles = []
-        self.field_dims = (7.925, 16.46)  # 26x54 ft in meters
+        self.field_dims = (7.925, 16.46)
         self.margin = 0
         self.texture_id = None
+        self.setMinimumSize(800, 600)
 
     def set_data(self, field_dims, path, elements, polygon_obstacles=None):
         self.field_dims = field_dims
@@ -36,6 +37,7 @@ class OpenGLField(QGLWidget):
 
     def set_background(self, game_name):
         file = os.path.join(os.path.dirname(__file__), "assets", "field_backgrounds", f"{game_name.lower().replace(' ', '_')}.png")
+        print("Loading field background from:", file)
         if os.path.exists(file):
             image = Image.open(file).convert("RGBA")
             ix, iy = image.size
@@ -48,6 +50,7 @@ class OpenGLField(QGLWidget):
             glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR)
             glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR)
             glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, ix, iy, 0, GL_RGBA, GL_UNSIGNED_BYTE, image_data)
+            self.update()
 
     def initializeGL(self):
         glClearColor(0.05, 0.07, 0.1, 1)
@@ -76,7 +79,7 @@ class OpenGLField(QGLWidget):
             glTexCoord2f(0.0, 0.0); glVertex2f(0, self.field_dims[1])
             glEnd()
 
-        # Draw grid
+        # Grid
         glColor4f(0.2, 0.3, 0.4, 0.4)
         for x in range(int(self.field_dims[0]) + 1):
             glBegin(GL_LINES)
@@ -89,7 +92,7 @@ class OpenGLField(QGLWidget):
             glVertex2f(self.field_dims[0], y)
             glEnd()
 
-        # Draw polygonal obstacles
+        # Obstacles
         glColor4f(1.0, 0.5, 0.1, 0.8)
         for poly in self.polygon_obstacles:
             glBegin(GL_LINE_LOOP)
@@ -97,7 +100,7 @@ class OpenGLField(QGLWidget):
                 glVertex2f(pt["x"], pt["y"])
             glEnd()
 
-        # Draw game elements
+        # Field elements
         grouped = Utils.group_elements_by_type(self.elements)
         glColor4f(0.8, 0.2, 0.2, 0.7)
         for e in grouped.get("obstacle", []):
@@ -109,6 +112,7 @@ class OpenGLField(QGLWidget):
         for e in grouped.get("target", []):
             self._draw_rect(e)
 
+        # Path
         if self.path:
             glColor4f(0.0, 1.0, 1.0, 1.0)
             glBegin(GL_LINE_STRIP)
@@ -176,6 +180,7 @@ class MainWindow(QtWidgets.QMainWindow):
             obstacle_path = os.path.join(os.path.dirname(__file__), "..", "frc_field_grid_with_obstacles.json")
             polygons = Utils.get_polygon_obstacles(game_name, obstacle_path)
             self.fieldWidget.set_data(dims, [], elements, polygon_obstacles=polygons)
+            self.fieldWidget.repaint()
 
     def toggle_field_mode(self):
         self.fieldWidth.setDisabled(self.officialFieldCheck.isChecked())
