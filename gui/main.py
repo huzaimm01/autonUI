@@ -121,8 +121,12 @@ class MainWindow(QtWidgets.QMainWindow):
         uic.loadUi(os.path.join(os.path.dirname(__file__), "layout.ui"), self)
         self.apply_theme("dark")
 
-        self.fieldWidget = OpenGLField(self.findChild(QtWidgets.QWidget, "openGLContainer"))
-        self.findChild(QtWidgets.QVBoxLayout, "verticalLayout", QtWidgets.QWidget).addWidget(self.fieldWidget)
+        container = self.findChild(QtWidgets.QWidget, "openGLContainer")
+        layout = container.layout() if container else self.centralWidget().findChild(QtWidgets.QVBoxLayout, "verticalLayout")
+
+        self.fieldWidget = OpenGLField(container)
+        if layout:
+            layout.addWidget(self.fieldWidget)
 
         self.games = {}
         self.populate_games()
@@ -207,7 +211,7 @@ class MainWindow(QtWidgets.QMainWindow):
             return
 
         planner = PathPlanner(game, robot)
-        path = planner.plan_path(start, goals, elements)
+        path = planner.plan_path(start, goals)
 
         if not path:
             self.resultBox.setText("No valid path found.")
