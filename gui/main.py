@@ -41,15 +41,44 @@ class OpenGLField(QGLWidget):
         self.update()
 
     def set_background(self, game_name):
-        file = os.path.join(os.path.dirname(__file__), "assets", "field_backgrounds", f"{game_name.lower().replace(' ', '_')}.png")
-        print("Loading field background from:", file)
+        # Try multiple possible naming conventions for the field background
+        possible_filenames = [
+            f"{game_name.lower().replace(' ', '_')}.png",
+            f"{game_name.lower()}.png",
+            f"{game_name.replace(' ', '_')}.png",
+            f"{game_name}.png"
+        ]
         
-        if os.path.exists(file):
+        # Search in multiple possible locations
+        possible_paths = [
+            os.path.join(os.path.dirname(__file__), "assets", "field_backgrounds"),
+            os.path.join(os.path.dirname(__file__), "..", "assets", "field_backgrounds"),
+            os.path.join(os.path.dirname(__file__), "assets"),
+            os.path.join(os.path.dirname(__file__), "..", "assets")
+        ]
+        
+        file_found = None
+        for path in possible_paths:
+            if os.path.exists(path):
+                for filename in possible_filenames:
+                    file_path = os.path.join(path, filename)
+                    if os.path.exists(file_path):
+                        file_found = file_path
+                        break
+                if file_found:
+                    break
+        
+        if file_found:
+            print(f"Loading field background from: {file_found}")
             if self.initialized:
-                self._load_texture(file)
+                self._load_texture(file_found)
             else:
                 # Store the file path to load after initialization
-                self.pending_background = file
+                self.pending_background = file_found
+        else:
+            print(f"Warning: Could not find background image for game '{game_name}'")
+            print(f"Looked for: {possible_filenames}")
+            print(f"In directories: {possible_paths}")
 
     def _load_texture(self, file_path):
         try:
@@ -86,7 +115,25 @@ class OpenGLField(QGLWidget):
         glViewport(0, 0, w, h)
         glMatrixMode(GL_PROJECTION)
         glLoadIdentity()
-        glOrtho(0, self.field_dims[0], self.field_dims[1], 0, -1, 1)
+        
+        # Calculate proper aspect ratio to prevent squishing
+        aspect_ratio = w / h if h > 0 else 1
+        field_aspect_ratio = self.field_dims[0] / self.field_dims[1]
+        
+        # Adjust the view to maintain proper aspect ratio
+        if aspect_ratio > field_aspect_ratio:
+            # Window is wider than field
+            height = self.field_dims[1]
+            width = height * aspect_ratio
+            offset_x = (width - self.field_dims[0]) / 2
+            glOrtho(-offset_x, self.field_dims[0] + offset_x, self.field_dims[1], 0, -1, 1)
+        else:
+            # Window is taller than field
+            width = self.field_dims[0]
+            height = width / aspect_ratio
+            offset_y = (height - self.field_dims[1]) / 2
+            glOrtho(0, self.field_dims[0], self.field_dims[1] + offset_y, -offset_y, -1, 1)
+            
         glMatrixMode(GL_MODELVIEW)
 
     def paintGL(self):
@@ -204,6 +251,17 @@ class MainWindow(QtWidgets.QMainWindow):
         if mainSplitter:
             # Set reasonable initial sizes (adjust as needed)
             mainSplitter.setSizes([400, 600])  # Left panels, right field preview
+            
+        # Additional setup for better field display
+        if hasattr(self, 'fieldWidget'):
+            # Force the OpenGL widget to take as much space as possible
+            sizePolicy = QtWidgets.QSizePolicy(
+                QtWidgets.QSizePolicy.Expanding, 
+                QtWidgets.QSizePolicy.Expanding
+            )
+            sizePolicy.setHorizontalStretch(3)
+            sizePolicy.setVerticalStretch(3)
+            self.fieldWidget.setSizePolicy(sizePolicy)
 
         # Find and connect UI controls (with fallbacks if they don't exist)
         self.findAndConnectUIControls()
@@ -311,23 +369,50 @@ class MainWindow(QtWidgets.QMainWindow):
         if not game_name:
             print("No game selected, skipping background update")
             return
-            
+        
+        print(f"Updating background for game: {game_name}")
         self.fieldWidget.set_background(game_name)
         game = self.games.get(game_name)
         if game:
+            # Get field dimensions for this specific game
             dims = (game.field_width, game.field_length)
+            print(f"Field dimensions: {dims}")
+            
+            # Get field elements
             elements = [e.to_dict() if hasattr(e, "to_dict") else e for e in game.field_elements]
             
-            # Handle the case where file paths might not exist
-            obstacle_path = os.path.join(os.path.dirname(__file__), "..", "frc_field_grid_with_obstacles.json")
-            try:
-                polygons = Utils.get_polygon_obstacles(game_name, obstacle_path)
-            except Exception as e:
-                print(f"Warning: Could not load polygon obstacles: {e}")
-                polygons = []
-                
+            # Look for obstacles file in multiple locations
+            obstacle_paths = [
+                os.path.join(os.path.dirname(__file__), "..", "frc_field_grid_with_obstacles.json"),
+                os.path.join(os.path.dirname(__file__), "frc_field_grid_with_obstacles.json"),
+                os.path.join(os.path.dirname(__file__), "..", "data", "frc_field_grid_with_obstacles.json"),
+                os.path.join(os.path.dirname(__file__), "data", "frc_field_grid_with_obstacles.json")
+            ]
+            
+            polygons = []
+            for obstacle_path in obstacle_paths:
+                if os.path.exists(obstacle_path):
+                    try:
+                        polygons = Utils.get_polygon_obstacles(game_name, obstacle_path)
+                        print(f"Loaded polygon obstacles from: {obstacle_path}")
+                        break
+                    except Exception as e:
+                        print(f"Warning: Could not load polygon obstacles from {obstacle_path}: {e}")
+            
+            # Force a complete reset of the field data
             self.fieldWidget.set_data(dims, [], elements, polygon_obstacles=polygons)
+            
+            # Force OpenGL field to update
+            self.fieldWidget.update()
             self.fieldWidget.repaint()
+            
+            # Print status to help debug
+            print(f"Updated field data with {len(elements)} elements and {len(polygons)} obstacles")
+            
+            # Update UI elements based on game
+            if hasattr(self, 'fieldWidth') and hasattr(self, 'fieldLength'):
+                self.fieldWidth.setText(str(game.field_width))
+                self.fieldLength.setText(str(game.field_length))
 
     def toggle_field_mode(self):
         if not hasattr(self, 'fieldWidth') or not hasattr(self, 'fieldLength') or \
