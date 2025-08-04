@@ -121,16 +121,19 @@ class AutonUIMainWindow(QMainWindow):
         self.waypoint_x_spin = QDoubleSpinBox()
         self.waypoint_x_spin.setRange(0, 100)
         self.waypoint_x_spin.setDecimals(2)
+        self.waypoint_x_spin.setEnabled(False)
         self.waypoint_x_spin.valueChanged.connect(self._on_waypoint_x_changed)
         waypoint_layout.addRow("X:", self.waypoint_x_spin)
         
         self.waypoint_y_spin = QDoubleSpinBox()
         self.waypoint_y_spin.setRange(0, 100)
         self.waypoint_y_spin.setDecimals(2)
+        self.waypoint_y_spin.setEnabled(False)
         self.waypoint_y_spin.valueChanged.connect(self._on_waypoint_y_changed)
         waypoint_layout.addRow("Y:", self.waypoint_y_spin)
         
         self.delete_waypoint_btn = QPushButton("Delete Waypoint")
+        self.delete_waypoint_btn.setEnabled(False)
         self.delete_waypoint_btn.clicked.connect(self._delete_selected_waypoint)
         waypoint_layout.addWidget(self.delete_waypoint_btn)
         
@@ -219,6 +222,10 @@ class AutonUIMainWindow(QMainWindow):
             QPushButton:pressed {
                 background-color: #2a2a2a;
             }
+            QPushButton:disabled {
+                background-color: #2a2a2a;
+                color: #666;
+            }
             QComboBox, QDoubleSpinBox {
                 background-color: #3a3a3a;
                 border: 1px solid #555;
@@ -226,8 +233,28 @@ class AutonUIMainWindow(QMainWindow):
                 padding: 3px;
                 min-height: 20px;
             }
+            QComboBox:disabled, QDoubleSpinBox:disabled {
+                background-color: #2a2a2a;
+                color: #666;
+            }
             QLabel {
                 color: #ffffff;
+            }
+            QMenuBar {
+                background-color: #2a2a2a;
+                color: #ffffff;
+                border-bottom: 1px solid #555;
+            }
+            QMenuBar::item:selected {
+                background-color: #3a3a3a;
+            }
+            QMenu {
+                background-color: #2a2a2a;
+                color: #ffffff;
+                border: 1px solid #555;
+            }
+            QMenu::item:selected {
+                background-color: #3a3a3a;
             }
         """)
         
@@ -329,9 +356,6 @@ class AutonUIMainWindow(QMainWindow):
         
         with open(os.path.join(fieldmaps_dir, "obstacles.json"), 'w') as f:
             json.dump(sample_data, f, indent=2)
-    
-    # Event handlers and other methods continue...
-    # (Include all the remaining methods from the original implementation)
     
     def _on_game_changed(self, game_name: str):
         """Handle game selection change"""
